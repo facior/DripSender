@@ -1,0 +1,2 @@
+Poprawiony wyglad zakladki Sekwencja.
+Dodana automatyczna aktualizacja.

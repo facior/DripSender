@@ -1,0 +1,22 @@
+# Artefakty budowania - .exe idzie do wydania na GitHubie, nie do repozytorium
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Dane aplikacji w trybie przenośnym - lista klientów NIE trafia do repozytorium
+dane/
+*.db
+*.db-wal
+*.db-shm
+portable.txt
+
+# Środowisko
+.vscode/
+.idea/
+*.log
