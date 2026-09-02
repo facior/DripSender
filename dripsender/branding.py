@@ -92,11 +92,6 @@ FEATURES = [
         "przyjmują poczty - zanim zamienią się w odbicia.",
     ),
     (
-        "Aktualizacje bez zachodu",
-        "Program sam sprawdza, czy jest nowsza wersja, pobiera ją i podmienia się "
-        "na nią - klient nie musi niczego szukać ani instalować.",
-    ),
-    (
         "Dzienny limit i wypisania",
         "Limit chroni skrzynkę przed blokadą, a adres, który poprosi o wypisanie, "
         "jest pomijany na stałe.",
@@ -131,15 +126,9 @@ PRIVACY_NOTES = [
         "leży wyłącznie jego nieodwracalny skrót.",
     ),
     (
-        "Aktualizacje tylko po HTTPS, z sumą kontrolną",
-        "Pobrany plik musi mieć sumę SHA-256 zgodną z opisem wydania. Niezgodna suma "
-        "oznacza skasowanie pliku i przerwanie instalacji.",
-    ),
-    (
         "Nic nie wraca do autora",
         "Program nie wysyła żadnych statystyk, listy odbiorców ani raportów. "
-        "Łączy się tylko z serwerem poczty, a przy włączonych aktualizacjach pobiera "
-        "plik z numerem wersji - niczego przy tym nie wysyłając.",
+        "Poza wysyłką maili i czytaniem skrzynki nie łączy się z niczym.",
     ),
 ]
 

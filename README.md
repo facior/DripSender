@@ -115,30 +115,6 @@ Edytor ostrzega na pomarańczowo przed dwoma pułapkami: nieznanym znacznikiem (
 - **Okno czasowe** — dni tygodnia i godziny. Poza nim program czeka i sam wraca do pracy („Wznowię jutro o 09:00"). Okno przez północ (22:00–06:00) też działa.
 - **Limit dzienny** — domyślnie 450 wiadomości, poniżej limitu Gmaila (~500). Po wyczerpaniu kampania czeka do jutra.
 
-## Automatyczna aktualizacja
-
-Program potrafi sam się zaktualizować. Wymaga miejsca, z którego pobierze pliki — najprościej **GitHub Releases** (darmowe, HTTPS, bez stawiania serwera), ale zadziała z dowolnym hostingiem.
-
-**Jak wydać nową wersję:**
-
-```
-build.bat
-py -3.13 przygotuj_wydanie.py https://example.com/dripsender/1.4.0
-```
-
-Skrypt policzy sumę kontrolną, przemianuje plik na `DripSender-1.4.0.exe` i wygeneruje `dist/update.json`. Oba pliki wgrywasz w to samo miejsce, a adres `update.json` klient wpisuje raz w **Ustawieniach → Aktualizacje programu**. Opis zmian możesz podać w pliku `ZMIANY.txt` — trafi do okna, które zobaczy klient.
-
-**Co się dzieje u klienta:** przy starcie program po cichu pyta serwer o wersję. Jeśli jest nowsza, pokazuje okno z opisem zmian i przyciskami *Pobierz i zainstaluj*, *Pomiń tę wersję*, *Później*. Po pobraniu program zamyka się, mały plik wsadowy podmienia `.exe` i uruchamia nową wersję.
-
-**Zabezpieczenia.** To najwrażliwsze miejsce w całej aplikacji — kanał, przez który na komputer klienta trafia wykonywalny kod. Dlatego:
-
-- adres musi być **https** (wyjątek tylko dla localhost, na potrzeby testów),
-- pobrany plik musi mieć **sumę SHA-256 zgodną z opisem wydania**; niezgodna = plik skasowany, instalacja przerwana,
-- program **nigdy nie cofa się do starszej wersji**,
-- pobieranie ma limit rozmiaru.
-
-Czego to **nie** daje: plik nie jest podpisany certyfikatem, więc zaufanie opiera się na tym, że kontrolujesz serwer. Jeśli ktoś przejmie hosting, przejmie też komputery klientów. Przy jednym kliencie ryzyko jest akceptowalne, przy kilkudziesięciu warto rozważyć podpisywanie kodu.
-
 ## Praca w tle
 
 - Krzyżyk chowa program do zasobnika, kampania leci dalej.
@@ -150,7 +126,7 @@ Czego to **nie** daje: plik nie jest podpisany certyfikatem, więc zaufanie opie
 - Hasło SMTP w **Menedżerze poświadczeń Windows**, nie w pliku.
 - Opcjonalny **PIN przy uruchomieniu** — w bazie leży wyłącznie jego nieodwracalny skrót (PBKDF2, 200 tys. iteracji).
 - **Kopia zapasowa jednym kliknięciem** i przywracanie — kopię można zrobić przy działającej kampanii.
-- Program łączy się wyłącznie z serwerem poczty (wysyłka i nasłuch) oraz — jeśli włączysz aktualizacje — z podanym przez Ciebie adresem, żeby pobrać plik z numerem wersji. Nie wysyła nigdzie żadnych danych o użytkowniku ani o liście klientów.
+- Poza wysyłką maili i czytaniem skrzynki program nie łączy się z niczym.
 
 ---
 
@@ -193,7 +169,6 @@ Dane: `%APPDATA%\DripSender\mailer.db`. Pusty plik `portable.txt` obok `.exe` pr
 ```
 main.py                     punkt wejścia
 build.bat                   budowanie .exe
-przygotuj_wydanie.py        generuje update.json z sumą kontrolną
 dripsender/
     branding.py             nazwa, wersja, dane autora
     paths.py                katalog danych, tryb przenośny
@@ -206,7 +181,6 @@ dripsender/
     importer.py             wczytywanie CSV i Excela
     validate.py             sprawdzanie listy przed wysyłką
     tray.py                 zasobnik systemowy i autostart
-    updater.py              sprawdzanie, pobieranie i instalacja aktualizacji
     ui/
         theme.py            kolory i style
         widgets.py          karty, kafelki, tabela, wykres

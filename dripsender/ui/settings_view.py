@@ -11,9 +11,7 @@ import customtkinter as ctk
 
 from ..engine import load_smtp_config
 from ..paths import data_dir
-from .. import branding, updater
 from ..security import app_lock_enabled, set_app_lock
-from ..updater import aktualizacje_dostepne
 from ..schedule import DAY_NAMES, SendWindow, parse_time
 from ..store import now_iso, verify_backup
 from ..tray import autostart_supported, is_autostart_enabled, set_autostart
@@ -52,7 +50,6 @@ class SettingsView(ctk.CTkScrollableFrame):
         self._build_unsubscribe_card()
         self._build_inbox_card()
         self._build_security_card()
-        self._build_update_card()
         self.refresh()
 
     # ------------------------------------------------------------------ budowa
@@ -634,116 +631,6 @@ class SettingsView(ctk.CTkScrollableFrame):
             return
         self.app.restore_from_backup(sciezka)
 
-    def _build_update_card(self) -> None:
-        card = Card(
-            self,
-            "Aktualizacje programu",
-            "Program sprawdza pod podanym adresem, czy jest nowsza wersja, i może ją "
-            "pobrać oraz podmienić samodzielnie.",
-        )
-        card.grid(row=7, column=0, sticky="ew", pady=(0, 14))
-        body = card.body
-        body.grid_columnconfigure(0, weight=0)
-        body.grid_columnconfigure(1, weight=1)
-
-        self.update_var = ctk.BooleanVar(value=True)
-        ctk.CTkCheckBox(
-            body,
-            text="Sprawdzaj dostępność aktualizacji przy uruchomieniu",
-            variable=self.update_var,
-            font=theme.font(12),
-            text_color=theme.TEXT,
-            checkbox_width=18,
-            checkbox_height=18,
-            corner_radius=4,
-            fg_color=theme.ACCENT,
-            hover_color=theme.ACCENT_HOVER,
-            border_color=theme.BORDER,
-        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
-
-        self.update_url_entry = self._row(
-            body, 1, "Adres pliku z wersją", "https://.../update.json"
-        )
-
-        ctk.CTkLabel(
-            body,
-            text="Adres musi zaczynać się od https - inaczej ktoś po drodze mógłby podstawić "
-            "własny plik. Pobrana aktualizacja jest sprawdzana sumą kontrolną SHA-256 "
-            "z opisu wydania; niezgodna suma oznacza odrzucenie pliku bez instalacji.",
-            font=theme.font(10),
-            text_color=theme.MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=640,
-        ).grid(row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0))
-
-        actions = ctk.CTkFrame(body, fg_color="transparent")
-        actions.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(14, 0))
-        actions.grid_columnconfigure(2, weight=1)
-        button(actions, "Zapisz", self.save_and_confirm, width=110).grid(
-            row=0, column=0, padx=(0, 8)
-        )
-        self.update_button = button(
-            actions, "Sprawdź aktualizacje", self.check_update, kind="ghost", width=180
-        )
-        self.update_button.grid(row=0, column=1)
-
-        self.update_status = ctk.CTkLabel(
-            body,
-            text="",
-            font=theme.font(11),
-            text_color=theme.MUTED,
-            anchor="w",
-            justify="left",
-            wraplength=640,
-        )
-        self.update_status.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-
-    def check_update(self) -> None:
-        self.save()
-        mozliwa, powod = aktualizacje_dostepne()
-        adres = self.store.get_setting("update_url", "").strip()
-        if not adres:
-            self.update_status.configure(
-                text="Najpierw wpisz adres pliku z opisem wydania.", text_color=theme.WARN
-            )
-            return
-
-        self.update_button.configure(state="disabled", text="Sprawdzam...")
-        self.update_status.configure(text="Pytam serwer o wersję...", text_color=theme.ACCENT)
-
-        def worker() -> None:
-            try:
-                wydanie = updater.sprawdz(adres, branding.VERSION)
-            except updater.UpdateError as exc:
-                komunikat = str(exc)
-                self.after(0, lambda: self._update_done(None, komunikat, mozliwa, powod))
-            else:
-                self.after(0, lambda: self._update_done(wydanie, "", mozliwa, powod))
-
-        threading.Thread(target=worker, name="update-check", daemon=True).start()
-
-    def _update_done(self, wydanie, blad: str, mozliwa: bool, powod: str) -> None:
-        self.update_button.configure(state="normal", text="Sprawdź aktualizacje")
-        self.store.set_setting("update_last_check", now_iso())
-        if blad:
-            self.update_status.configure(text=blad, text_color=theme.ERR)
-            return
-        if wydanie is None:
-            self.update_status.configure(
-                text="Masz najnowszą wersję (" + branding.VERSION + ").", text_color=theme.OK
-            )
-            return
-        if not mozliwa:
-            self.update_status.configure(
-                text="Jest wersja " + wydanie.version + ", ale " + powod, text_color=theme.WARN
-            )
-            return
-        self.update_status.configure(
-            text="Dostępna wersja " + wydanie.version + ".", text_color=theme.ACCENT
-        )
-        self.app.pokaz_aktualizacje(wydanie)
-
     def _form_row(self, parent, row: int, label: str):
         """Zwraca ramkę wiersza z etykietą po lewej i miejscem na pole po prawej."""
         holder = ctk.CTkFrame(parent, fg_color="transparent")
@@ -802,8 +689,6 @@ class SettingsView(ctk.CTkScrollableFrame):
                 "imap_stop_word": self.imap_stop_entry.get().strip().upper() or "STOP",
                 "unsubscribe_enabled": "1" if self.unsub_var.get() else "0",
                 "unsubscribe_text": self.unsub_entry.get(),
-                "update_auto_check": "1" if self.update_var.get() else "0",
-                "update_url": self.update_url_entry.get().strip(),
             }
         )
         self._apply_autostart()
@@ -867,7 +752,6 @@ class SettingsView(ctk.CTkScrollableFrame):
             self.imap_interval_entry: self.store.get_setting("imap_interval_minutes"),
             self.imap_days_entry: self.store.get_setting("imap_lookback_days"),
             self.imap_stop_entry: self.store.get_setting("imap_stop_word"),
-            self.update_url_entry: self.store.get_setting("update_url"),
             self.daily_limit_entry: self.store.get_setting("daily_limit"),
             self.hours_from_entry: self.store.get_setting("hours_from"),
             self.hours_to_entry: self.store.get_setting("hours_to"),
@@ -888,16 +772,6 @@ class SettingsView(ctk.CTkScrollableFrame):
         self.unsub_var.set(self.store.get_bool("unsubscribe_enabled"))
         self.unsub_entry.delete(0, "end")
         self.unsub_entry.insert(0, self.store.get_setting("unsubscribe_text"))
-        self.update_var.set(self.store.get_bool("update_auto_check", True))
-        ostatnia = self.store.get_setting("update_last_check", "")
-        mozliwa, powod = aktualizacje_dostepne()
-        self.update_status.configure(
-            text=powod if not mozliwa else (
-                "Ostatnie sprawdzenie: " + ostatnia if ostatnia else
-                "Jeszcze nie sprawdzano aktualizacji."
-            ),
-            text_color=theme.MUTED,
-        )
         self.imap_var.set(self.store.get_bool("imap_enabled"))
         ostatnie = self.store.get_setting("imap_last_check", "")
         self.inbox_status.configure(

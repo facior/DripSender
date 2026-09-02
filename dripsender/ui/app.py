@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import os
 import queue
-import threading
 from tkinter import messagebox
 
 import customtkinter as ctk
 
 from .. import APP_TITLE, __version__
 from ..engine import STATE_LABELS, STATE_PAUSED, STATE_RUNNING, CampaignEngine
-from .. import branding, updater
 from ..inbox import InboxWatcher
 from ..paths import resource_path
 from ..security import PasswordVault, app_lock_enabled
@@ -20,7 +18,7 @@ from ..tray import TrayIcon, tray_available
 from . import theme
 from .about_view import AboutView
 from .campaign_view import CampaignView
-from .dialogs import LockDialog, ReportDialog, UpdateDialog
+from .dialogs import LockDialog, ReportDialog
 from .guide_view import GuideView
 from .log_view import LogView
 from .recipients_view import RecipientsView
@@ -76,8 +74,6 @@ class App(ctk.CTk):
         self.sync_inbox_watcher()
         if poprzedni_stan == STATE_RUNNING and self.store.get_bool("auto_resume", True):
             self.after(1500, self._auto_resume)
-        if self.store.get_bool("update_auto_check", True):
-            self.after(4000, self._sprawdz_aktualizacje_w_tle)
 
     # ------------------------------------------------------------------ budowa
 
@@ -351,42 +347,6 @@ class App(ctk.CTk):
         self.deiconify()
         return True
 
-    # ------------------------------------------------------------ aktualizacje
-
-    def _sprawdz_aktualizacje_w_tle(self) -> None:
-        """Ciche sprawdzenie przy starcie - odzywa się tylko, gdy coś jest."""
-        adres = self.store.get_setting("update_url", "").strip()
-        mozliwa, _ = updater.aktualizacje_dostepne()
-        if not adres or not mozliwa:
-            return
-
-        def worker() -> None:
-            try:
-                wydanie = updater.sprawdz(adres, branding.VERSION)
-            except updater.UpdateError as exc:
-                # Brak internetu przy starcie nie jest powodem do niepokojenia użytkownika.
-                self.store.log("warn", "Sprawdzenie aktualizacji: " + str(exc))
-                return
-            self.store.set_setting("update_last_check", _teraz())
-            if wydanie is None:
-                return
-            if wydanie.version == self.store.get_setting("update_skipped", ""):
-                return
-            try:
-                self.after(0, lambda: self.pokaz_aktualizacje(wydanie))
-            except Exception:  # noqa: BLE001 - okno mogło już zniknąć
-                pass
-
-        threading.Thread(target=worker, name="update-startup", daemon=True).start()
-
-    def pokaz_aktualizacje(self, wydanie) -> None:
-        """Pokazuje okno aktualizacji. Po instalacji zamyka program."""
-        if not self.winfo_viewable():
-            self._restore_window()
-        wynik = UpdateDialog(self, self.store, wydanie).show()
-        if wynik == "instaluje":
-            self._quit_app(bez_pytania=True)
-
     def _restore_window(self) -> None:
         self.deiconify()
         self.lift()
@@ -427,10 +387,9 @@ class App(ctk.CTk):
             return
         self._quit_app()
 
-    def _quit_app(self, bez_pytania: bool = False) -> None:
-        if not bez_pytania:
-            self._restore_window()
-        if self.engine.is_active and not bez_pytania:
+    def _quit_app(self) -> None:
+        self._restore_window()
+        if self.engine.is_active:
             if not messagebox.askyesno(
                 "Zamknąć aplikację?",
                 "Kampania jest w toku. Zamknięcie przerwie wysyłkę - pozostali odbiorcy "
@@ -440,8 +399,6 @@ class App(ctk.CTk):
             ):
                 return
             self.engine.stop("Aplikacja została zamknięta.")
-        elif self.engine.is_active:
-            self.engine.stop("Instalacja aktualizacji.")
         try:
             self.views["sequence"].save()
         except Exception:  # noqa: BLE001 - zamykanie nie może się wysypać
@@ -460,8 +417,3 @@ def run() -> None:
         return
     app.mainloop()
 
-
-def _teraz() -> str:
-    from ..store import now_iso
-
-    return now_iso()
